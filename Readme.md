@@ -85,6 +85,7 @@ JotForm POS Concept
 ## Functionality Screenshot
 
 ![Functionality Screenshot](docs/Functionality/image.png)
+![Functionality Screenshot](docs/Functionality/image-29.png)
 ![Functionality Screenshot](docs/Functionality/add-customer.png)
 
 
