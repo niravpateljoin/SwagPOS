@@ -1,0 +1,55 @@
+<?xml version="1.0" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <services>
+
+        <service id="POSBasicExample\Command\ExampleCommand">
+            <tag name="console.command"/>
+        </service>
+
+        <service id="POSBasicExample\ScheduledTask\ExampleTask">
+            <tag name="shopware.scheduled.task"/>
+        </service>
+
+        <service id="POSBasicExample\Subscriber\MySubscriber">
+            <tag name="kernel.event_subscriber"/>
+        </service>
+
+        <service id="POSBasicExample\Storefront\Controller\ExampleController" public="true">
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
+
+        <service id="POSBasicExample\Core\Content\Example\SalesChannel\ExampleRoute">
+            <argument type="service" id="product.repository"/>
+        </service>
+
+        <service id="POSBasicExample\Service\CustomFieldsInstaller">
+            <argument type="service" id="custom_field_set.repository"/>
+            <argument type="service" id="custom_field_set_relation.repository"/>
+        </service>
+        <!-- <service id="pos\BasicExample\Storefront\Controller\ExampleController" public="true">
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service> -->
+        <service id="POSBasicExample\Storefront\Controller\POSController"
+                 public="true"
+                 autowire="true"
+                 autoconfigure="true">
+            <tag name="controller.service_arguments"/>
+        </service>
+        <service id="POSBasicExample\Storefront\Controller\CustomerController"
+                 public="true"
+                 autowire="true"
+                 autoconfigure="true">
+            <tag name="controller.service_arguments"/>
+        </service>
+        
+        
+    </services>
+</container>

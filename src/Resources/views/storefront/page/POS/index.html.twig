@@ -1,0 +1,354 @@
+{% sw_extends '@Storefront/storefront/base.html.twig' %}
+
+{% block base_navigation_styling %}
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        .select2-container--default .select2-selection--single {
+            height: 40px;
+            padding: 6px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 38px;
+            right: 10px;
+        }
+    </style>
+{% endblock %}
+
+{% block base_content %}
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-primary fw-bold mb-0">Point Of Sale</h2>
+        <a href="{{ path('frontend.add.customer') }}" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-user-plus me-1"></i> Add Customer
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <div class="mb-4">
+                <label for="mySelect2" class="form-label">Select Existing Customer</label>
+                <select name="customer_id" id="mySelect2" class="form-select w-100">
+                    <option value="">-- Select Customer --</option>
+                    {% for customer in customers %}
+                        <option value="{{ customer.id }}"
+                                data-name="{{ customer.name }}"
+                                data-email="{{ customer.email }}">
+                              {{ customer.name }} ({{ customer.email }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Customer Name</label>
+                    <input type="text" id="customerName" class="form-control" readonly>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="customerEmail" class="form-control" readonly>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Order Date & Time</label>
+                    <input type="datetime-local" id="orderdate" name="orderDate" class="form-control">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container my-5">
+    <div class="border shadow-sm bg-white rounded-3 p-4">
+        <fieldset class="p-4 rounded-3 border border-secondary-subtle">
+            <legend class="float-none w-auto px-3 fs-5 text-primary">Products from Shopware</legend>
+
+            <div class="mb-4">
+                <label for="productSelect" class="form-label fw-semibold">Search Product</label>
+                <select id="productSelect" class="form-select w-100">
+                    <option value="">-- Select Product --</option>
+                    {% for product in products %}
+                        <option value="{{ product.id }}"
+                                data-name="{{ product.name }}"
+                                data-price="{{ product.price }}"
+                                data-image="{{ product.imageUrl }}"
+                                data-tax="{{ product.taxRate }}"
+                                data-description="{{ product.description|striptags }}">
+                            {{ product.name }} - ${{ product.price|number_format(2, '.', ',') }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="productList" class="mt-4 row g-3"></div>
+
+            <div class="text-end mt-3">
+                <button id="clearAllProducts" class="btn btn-outline-danger btn-sm">Clear All</button>
+            </div>
+
+            <hr class="mt-5 mb-3" />
+
+            <div class="d-flex flex-column align-items-end">
+                <div><strong>Subtotal:</strong> $<span id="subtotal">0.00</span></div>
+                <div><strong>Total Tax:</strong> $<span id="tax">0.00</span></div>
+                <div class="fs-5 fw-bold text-primary">Total: $<span id="total">0.00</span></div>
+            </div>
+        </fieldset>
+    </div>
+</div>
+
+<div class="container my-5">
+    <div class="border shadow-sm bg-white rounded-3 p-4">
+        <fieldset class="p-4 rounded-3 border border-secondary-subtle">
+            <legend class="float-none w-auto px-3 fs-5 text-primary">Payment Order</legend>
+
+            <div class="mb-3">
+                <label for="paymentMethod" class="form-label fw-semibold">Payment Method:</label>
+                <select id="paymentMethod" name="paymentMethod" class="form-select" required>
+                    <option value="">Select Payment Method</option>
+                    {% for method in paymentMethods %}
+                        <option value="{{ method.id }}">{{ method.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>  
+        </fieldset>
+    </div>
+</div>
+
+<div class="d-flex justify-content-end gap-2">
+    <button id="makeOrderBtn" class="btn btn-success">
+        <i class="fas fa-check-circle me-1"></i> Make Order
+    </button>
+</div>
+{% endblock %}
+
+{% block base_body_script %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(function () {
+    $('#mySelect2, #productSelect').select2({ width: '100%' });
+
+    const cartItems = JSON.parse(localStorage.getItem('pos_cart')) || {};
+
+    function escapeHTML(str) {
+        return String(str).replace(/[&<>'"]/g, tag => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+        }[tag]));
+    }
+
+    function saveCart() {
+        localStorage.setItem('pos_cart', JSON.stringify(cartItems));
+    }
+
+    function renderCart() {
+        $('#productList').empty();
+        Object.entries(cartItems).forEach(([id, item]) => {
+            $('#productList').append(productHTML(item));
+        });
+        calculateTotal();
+    }
+
+    function productHTML({ id, name, price, image, description, qty }) {
+        return `
+            <div class="col-md-12 product-card" data-id="${id}" data-price="${price}">
+                <div class="d-flex align-items-start border rounded-3 p-3 bg-light position-relative">
+                    <input type="checkbox" class="form-check-input me-3 mt-2 select-product" checked />
+                    <img src="${image}" class="me-3" style="width:60px; height:60px; object-fit:cover; border:1px solid #ccc; border-radius:5px;" />
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold">${escapeHTML(name)}</div>
+                        <div class="text-muted small">${escapeHTML(description)}</div>
+                        <div class="mt-2">
+                            Quantity:
+                            <input type="number" min="1" value="${qty}" class="form-control d-inline w-auto quantity-input" style="width:80px;" />
+                        </div>
+                    </div>
+                    <div class="text-end text-nowrap ms-3 mt-2">
+                        <div class="fw-bold fs-5">$${price.toFixed(2)}</div>
+                        <i class="fas fa-trash-alt text-danger remove-product ms-2" style="cursor:pointer;" title="Remove"></i>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function calculateTotal() {
+        let subtotal = 0, totalTax = 0;
+        $('.product-card').each(function () {
+            if ($(this).find('.select-product').is(':checked')) {
+                const id = $(this).data('id');
+                const price = parseFloat($(this).data('price'));
+                const qty = parseInt($(this).find('.quantity-input').val()) || 1;
+                const taxRate = cartItems[id]?.taxRate || 0;
+                subtotal += price * qty;
+                totalTax += (price * qty) * (taxRate / 100);
+            }
+        });
+        $('#subtotal').text(subtotal.toFixed(2));
+        $('#tax').text(totalTax.toFixed(2));
+        $('#total').text((subtotal + totalTax).toFixed(2));
+    }
+
+    $('#mySelect2').on('change', function () {
+        const selected = $(this).find('option:selected');
+        $('#customerName').val(selected.data('name') || '');
+        $('#customerEmail').val(selected.data('email') || '');
+    });
+
+    $('#productSelect').on('change', function () {
+        const selected = $(this).find('option:selected');
+        const id = selected.val();
+        if (!id || cartItems[id]) return;
+        cartItems[id] = {
+            id,
+            name: selected.data('name'),
+            price: parseFloat(selected.data('price')) || 0,
+            image: selected.data('image'),
+            description: selected.data('description'),
+            qty: 1,
+            taxRate: parseFloat(selected.data('tax')) || 0
+        };
+        saveCart();
+        renderCart();
+        $(this).val('').trigger('change');
+    });
+
+    $(document).on('click', '.remove-product', function () {
+        const id = $(this).closest('.product-card').data('id');
+        delete cartItems[id];
+        saveCart();
+        renderCart();
+    });
+
+    $('#clearAllProducts').on('click', function () {
+        if (confirm("Are you sure you want to clear all products?")) {
+            for (const id in cartItems) delete cartItems[id];
+            saveCart();
+            renderCart();
+        }
+    });
+
+    $(document).on('change', '.quantity-input, .select-product', function () {
+        $('#productList .product-card').each(function () {
+            const id = $(this).data('id');
+            const qty = parseInt($(this).find('.quantity-input').val()) || 1;
+            if (cartItems[id]) cartItems[id].qty = qty;
+        });
+        saveCart();
+        calculateTotal();
+    });
+
+    $('#orderdate').val(localStorage.getItem('order_date') || '');
+    $('#orderdate').on('change', function () {
+        localStorage.setItem('order_date', this.value);
+    });
+
+    function fetchAccessToken(callback) {
+        $.ajax({
+            url: 'http://localhost:8000/api/oauth/token',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                grant_type: 'client_credentials',
+                client_id: 'SWIAALBVNVZMTNZ6C3DTY2HJVA',
+                client_secret: 'OW1SeEUxQ0lXRk1IbVZYWnFpTUN2bnlCVEZ1UklLWnQyejRET2c'
+            }),
+            success: function (res) {
+                callback(res.access_token);
+            },
+            error: function () {
+                alert('Failed to fetch token');
+                $('#makeOrderBtn').prop('disabled', false).html('<i class="fas fa-check-circle me-1"></i> Make Order');
+            }
+        });
+    }
+    const customerId = $('#mySelect2').val();
+    function getCustomerDetails(customerId, accessToken, callback) {
+        $.ajax({
+            url: `http://localhost:8000/api/customer/${customerId}`,
+            headers: { Authorization: 'Bearer ' + accessToken },
+            success: function (res) {
+                callback(res.data);
+            },
+            error: function () {
+                alert('Failed to fetch customer details');
+                $('#makeOrderBtn').prop('disabled', false).html('<i class="fas fa-check-circle me-1"></i> Make Order');
+            }
+        });
+    }
+
+    $('#makeOrderBtn').on('click', function () {
+        const customerId = $('#mySelect2').val();
+        const paymentMethod = $('#paymentMethod').val();
+        const orderDate = $('#orderdate').val();
+
+        if (!customerId) return alert("Please select a customer.");
+        if (!paymentMethod) return alert("Please select a payment method.");
+
+        const items = Object.values(cartItems).filter(item => item).map(item => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.qty,
+            unitPrice: item.price,
+            taxRate: item.taxRate,
+            positionPrice: item.price,
+            rawTotal: (item.qty * item.price).toFixed(2),
+            taxStatus: "gross"
+        }));
+
+        if (items.length === 0) return alert("Please select at least one product.");
+
+        $('#makeOrderBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Placing Order...');
+
+        fetchAccessToken(function (token) {
+            getCustomerDetails(customerId, token, function (customer) {
+                alert(customer.defaultBillingAddress);
+                // if (!customer.defaultBillingAddressId || !customer.salesChannelId || !customer.currencyId) {
+                //     alert("Customer info missing: billing address, sales channel, or currency.");
+                //     $('#makeOrderBtn').prop('disabled', false).html('<i class="fas fa-check-circle me-1"></i> Make Order');
+                //     return;
+                // }
+
+                const orderData = {
+                    customerId: customer.id,
+                    billingAddressId: customer.defaultBillingAddressId,
+                    currencyId: customer.currencyId,
+                    salesChannelId: customer.salesChannelId,
+                    stateId: customer.defaultBillingAddress?.stateId,
+                    paymentMethod,
+                    currencyFactor: 1.0,
+                    orderDateTime: orderDate ? new Date(orderDate).toISOString() : new Date().toISOString(),
+                    itemRounding: { decimals: 2, interval: 0.01 },
+                    totalRounding: { decimals: 2, interval: 0.01 },
+                    items
+                };
+                console.log(orderData);
+
+                $.ajax({
+                    url: 'http://localhost:8000/api/order',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    headers: { Authorization: 'Bearer ' + token },
+                    data: JSON.stringify(orderData),
+                    success: function () {
+                        alert("Order placed successfully!");
+                        localStorage.removeItem('pos_cart');
+                        localStorage.removeItem('order_date');
+                        location.reload();
+                    },
+                    error: function (xhr) {
+                        console.error(xhr.responseJSON || xhr.responseText);
+                        alert("Failed to place order.");
+                        $('#makeOrderBtn').prop('disabled', false).html('<i class="fas fa-check-circle me-1"></i> Make Order');
+                    }
+                });
+            });
+        });
+    });
+
+    renderCart();
+});
+</script>
+{% endblock %}

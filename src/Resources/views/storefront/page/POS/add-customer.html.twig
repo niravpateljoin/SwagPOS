@@ -1,0 +1,141 @@
+{% sw_extends '@Storefront/storefront/base.html.twig' %}
+
+{% block base_navigation_styling %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+{% endblock %}
+
+{% block base_content %}
+<form action="{{ path('frontend.pos.customer.save') }}" method="POST">
+    <div class="container my-5">
+        <div class="border shadow-sm bg-white rounded-3 p-4">
+            <fieldset class="p-4 rounded-3 border border-secondary-subtle">
+                <legend class="float-none w-auto px-3 fs-5 fw-semibold text-primary">Account</legend>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="customerType" class="form-label">Customer Type</label>
+                        <select class="form-select rounded-2" id="customerType" name="customer_type">
+                            <option value="private">Private</option>
+                            <option value="business">Business</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="accountSalutation" class="form-label">Salutation</label>
+                        <select class="form-select rounded-2" id="accountSalutation" name="salutation">
+                            <option value="mr">Mr.</option>
+                            <option value="mrs">Mrs.</option>
+                            <option value="not_specified" selected>Not Specified</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="accountTitle" class="form-label">Title</label>
+                        <input type="text" class="form-control rounded-2" id="accountTitle" name="title" placeholder="e.g. Dr.">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="accountFirstName" class="form-label">First Name</label>
+                        <input type="text" class="form-control rounded-2" id="accountFirstName" name="first_name" placeholder="e.g. John">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="accountLastName" class="form-label">Last Name</label>
+                        <input type="text" class="form-control rounded-2" id="accountLastName" name="last_name" placeholder="Enter Last Name">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="accountEmail" class="form-label">Email Address</label>
+                        <input type="email" class="form-control rounded-2" id="accountEmail" name="email" placeholder="example@gmail.com">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="accountPassword" class="form-label">Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control rounded-start-2" id="accountPassword" name="password" placeholder="Enter Password">
+                            <button class="btn btn-outline-secondary rounded-end-2" type="button" id="togglePassword" tabindex="-1">
+                                <i class="fa-solid fa-eye" id="eyeIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                  <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="company" class="form-label">Company</label>
+                        <input type="text" class="form-control rounded-2" id="company" name="company" placeholder="Enter Company Name">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="street" class="form-label">Street</label>
+                        <input type="text" class="form-control rounded-2" id="street" name="street" placeholder="Enter Street">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="city" class="form-label">City</label>
+                        <input type="text" class="form-control rounded-2" id="city" name="city" placeholder="Enter City">
+                    </div> 
+                </div>
+                <div class="row">
+                     <div class="col-md-4 mb-3">
+                        <label for="country" class="form-label">Country</label>
+                        <select class="form-select rounded-2" id="country" name="country_id">
+                            <option value="">Select Country</option>
+                            {% for country in countries %}
+                                <option value="{{ country.id }}">{{ country.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="dob" class="form-label">Date of Birth</label>
+                        <input type="date" class="form-control rounded-2" id="dob" name="dob">
+                    </div>
+                    <div class="col-md-4 mb-3 position-relative">
+                        <label for="customerGroup" class="form-label">Customer Group</label>
+                        <select class="form-select" name="group_id" id="customerGroup">
+                            <option value="">Select Group</option>
+                            {% for group in customerGroups %}
+                                <option value="{{ group.id }}">{{ group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 mb-3">
+                        <label for="salesChannel" class="form-label">Sales Channel</label>
+                        <select name="sales_channel_id" id="salesChannelId" class="form-select rounded-2">
+                            <option value="">Select Channel</option>
+                            {% for channel in salesChannels %}
+                                <option value="{{ channel.id }}">{{ channel.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="customerNumber" class="form-label">Customer Number</label>
+                        <input type="text" class="form-control rounded-2" id="customerNumber" name="customer_number" placeholder="Enter Customer Number">
+                    </div>
+                    {# <div class="col-md-4">
+                        <label for="phone" class="form-label">Phone Number</label>
+                        <input type="text" class="form-control rounded-2" id="phone" name="phone" placeholder="Enter Phone Number">
+                    </div> #}
+                </div>
+
+                <button type="submit" class="btn btn-primary mt-3">Submit Account</button>
+            </fieldset>
+        </div>
+
+        {% for label, messages in app.flashes %}
+            <div class="mt-4">
+                {% for message in messages %}
+                    <div class="alert alert-{{ label }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+</form>
+
+<script>
+    document.getElementById('togglePassword')?.addEventListener('click', function () {
+        const passwordInput = document.getElementById('accountPassword');
+        const eyeIcon = document.getElementById('eyeIcon');
+        const isPassword = passwordInput.type === 'password';
+        passwordInput.type = isPassword ? 'text' : 'password';
+        eyeIcon.classList.toggle('fa-eye');
+        eyeIcon.classList.toggle('fa-eye-slash');
+    });
+</script>
+{% endblock %}
