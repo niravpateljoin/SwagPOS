@@ -130,6 +130,10 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 $(function () {
+    const now = new Date();
+    const formatted = now.toISOString().slice(0, 16);
+    $('#orderdate').val(localStorage.getItem('order_date') || formatted);
+
     $('#mySelect2, #productSelect').select2({ width: '100%' });
 
     const cartItems = JSON.parse(localStorage.getItem('pos_cart')) || {};
@@ -240,7 +244,6 @@ $(function () {
         calculateTotal();
     });
 
-    $('#orderdate').val(localStorage.getItem('order_date') || '');
     $('#orderdate').on('change', function () {
         localStorage.setItem('order_date', this.value);
     });
@@ -264,17 +267,51 @@ $(function () {
             }
         });
     }
-    const customerId = $('#mySelect2').val();
-    function getCustomerDetails(customerId, accessToken, callback) {
+
+    function getCustomerDetails(customerId, token, callback) {
         $.ajax({
             url: `http://localhost:8000/api/customer/${customerId}`,
-            headers: { Authorization: 'Bearer ' + accessToken },
+            headers: { Authorization: 'Bearer ' + token },
             success: function (res) {
-                callback(res.data);
+                const data = res.data;
+                const customer = {
+                    id: data.id,
+                    firstName: data.attributes.firstName || '',
+                    lastName: data.attributes.lastName || '',
+                    billingAddressId: data.attributes.defaultBillingAddressId,
+                    salesChannelId: data.attributes.salesChannelId,
+                    email: data.attributes.email
+                };
+                callback(customer);
             },
             error: function () {
                 alert('Failed to fetch customer details');
                 $('#makeOrderBtn').prop('disabled', false).html('<i class="fas fa-check-circle me-1"></i> Make Order');
+            }
+        });
+    }
+
+    function toHexUuid(uuid) {
+        return uuid ? uuid.replace(/-/g, '') : null;
+    }
+
+    function getCurrentContext(token, callback) {
+        $.ajax({
+            url: 'http://localhost:8000/store-api/context',
+            headers: {
+                'Accept': 'application/json',
+                'sw-access-key': 'SWSCDTKZVKDQMG1STLYZWDB4QG',
+                'Authorization': 'Bearer ' + token
+            },
+            success: function(response) {
+                const currencyId = response.currency?.id || null;
+                const rawStateId = response.countryState?.id || '0197afbb-c1d9-70d9-81d3-2d378f4b4695';
+
+                 const stateId = toHexUuid(rawStateId);
+                callback({ currencyId, stateId });
+            },
+            error: function(xhr, status, error) {
+                console.error('Failed to fetch context:', status, error);
             }
         });
     }
@@ -287,62 +324,110 @@ $(function () {
         if (!customerId) return alert("Please select a customer.");
         if (!paymentMethod) return alert("Please select a payment method.");
 
-        const items = Object.values(cartItems).filter(item => item).map(item => ({
-            id: item.id,
-            name: item.name,
-            quantity: item.qty,
-            unitPrice: item.price,
-            taxRate: item.taxRate,
-            positionPrice: item.price,
-            rawTotal: (item.qty * item.price).toFixed(2),
-            taxStatus: "gross"
-        }));
+        const items = Object.values(cartItems).map(item => {
+            const quantity = item.qty;
+            const unitPrice = item.price;
+            const totalPrice = unitPrice * quantity;
+
+            return {
+                id: item.id,
+                type: 'product',
+                name: item.name,
+                quantity,
+                unitPrice,
+                positionPrice: totalPrice,
+                taxRate: item.taxRate,
+                taxStatus: "gross",
+                price: totalPrice,
+                priceDefinition: {
+                    unitPrice,
+                    quantity,
+                    totalPrice,
+                    rawTotal: totalPrice,
+                    calculatedTaxes: [],
+                    taxRules: []
+                }
+            };
+        });
 
         if (items.length === 0) return alert("Please select at least one product.");
 
         $('#makeOrderBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Placing Order...');
 
         fetchAccessToken(function (token) {
-            getCustomerDetails(customerId, token, function (customer) {
-                alert(customer.defaultBillingAddress);
-                // if (!customer.defaultBillingAddressId || !customer.salesChannelId || !customer.currencyId) {
-                //     alert("Customer info missing: billing address, sales channel, or currency.");
-                //     $('#makeOrderBtn').prop('disabled', false).html('<i class="fas fa-check-circle me-1"></i> Make Order');
-                //     return;
-                // }
+            getCurrentContext(token, function(context) {
+                getCustomerDetails(customerId, token, function (customer) {
+                    const subtotal = items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+                    const totalTax = items.reduce((sum, i) => sum + ((i.unitPrice * i.quantity) * (i.taxRate / 100)), 0);
+                    const total = subtotal + totalTax;
 
-                const orderData = {
-                    customerId: customer.id,
-                    billingAddressId: customer.defaultBillingAddressId,
-                    currencyId: customer.currencyId,
-                    salesChannelId: customer.salesChannelId,
-                    stateId: customer.defaultBillingAddress?.stateId,
-                    paymentMethod,
-                    currencyFactor: 1.0,
-                    orderDateTime: orderDate ? new Date(orderDate).toISOString() : new Date().toISOString(),
-                    itemRounding: { decimals: 2, interval: 0.01 },
-                    totalRounding: { decimals: 2, interval: 0.01 },
-                    items
-                };
-                console.log(orderData);
+                    const orderData = {
+                        customerId: customer.id,
+                        billingAddressId: customer.billingAddressId,
+                        currencyId: context.currencyId,
+                        salesChannelId: customer.salesChannelId,
+                        stateId: context.stateId || null,
+                        paymentMethod,
+                        paymentStatus: 'Open',
+                        currencyFactor: 1.0,
+                        orderDateTime: orderDate ? new Date(orderDate).toISOString() : new Date().toISOString(),
+                        itemRounding: { decimals: 2, interval: 0.01 },
+                        totalRounding: { decimals: 2, interval: 0.01 },
+                        items,
+                        price: {
+                            netPrice: parseFloat(subtotal.toFixed(2)),
+                            totalPrice: parseFloat(total.toFixed(2)),
+                            calculatedTaxes: [{
+                                tax: parseFloat(totalTax.toFixed(2)),
+                                taxRate: 19.0,
+                                price: parseFloat(subtotal.toFixed(2))
+                            }],
+                            rawTotal: parseFloat(total.toFixed(2)),
+                            taxRules: [{
+                                taxRate: 19.0,
+                                percentage: 100.0
+                            }],
+                            taxStatus: "gross",
+                            positionPrice: parseFloat(total.toFixed(2))
+                        },
+                        shippingCosts: {
+                            unitPrice: 0.00,
+                            totalPrice: 0.00,
+                            quantity: 1,
+                            calculatedTaxes: [],
+                            taxRules: []
+                        },
+                        orderNumber: 'ORD-' + Date.now(),
+                        orderCustomer: {
+                            customerId: customer.id,
+                            firstName: customer.firstName?.split(' ')[0] || '',
+                            lastName: customer.lastName?.split(' ')[0] || '',
+                            email: customer.email
+                        }
+                    };
 
-                $.ajax({
-                    url: 'http://localhost:8000/api/order',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    headers: { Authorization: 'Bearer ' + token },
-                    data: JSON.stringify(orderData),
-                    success: function () {
-                        alert("Order placed successfully!");
-                        localStorage.removeItem('pos_cart');
-                        localStorage.removeItem('order_date');
-                        location.reload();
-                    },
-                    error: function (xhr) {
-                        console.error(xhr.responseJSON || xhr.responseText);
-                        alert("Failed to place order.");
-                        $('#makeOrderBtn').prop('disabled', false).html('<i class="fas fa-check-circle me-1"></i> Make Order');
-                    }
+                    $.ajax({
+                        url: 'http://localhost:8000/api/order',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        headers: { Authorization: 'Bearer ' + token },
+                        data: JSON.stringify(orderData),
+                        success: function (response) {
+                            console.log('Order API response:', response);
+                            alert("Order placed successfully!");
+
+                            localStorage.removeItem('pos_cart');
+                            localStorage.removeItem('order_date');
+                            location.reload();
+                        },
+                        error: function (xhr) {
+                            console.error(xhr.responseJSON || xhr.responseText);
+                            alert("Failed to place order.");
+                            $('#makeOrderBtn').prop('disabled', false).html('<i class="fas fa-check-circle me-1"></i> Make Order');
+                        }
+                    });
+
                 });
             });
         });
