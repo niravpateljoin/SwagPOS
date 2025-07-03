@@ -13,7 +13,7 @@ use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Checkout\Customer\Aggregate\CustomerGroup\CustomerGroupEntity;
 use Shopware\Core\System\SalesChannel\SalesChannelContext;
 use Shopware\Core\System\SalesChannel\SalesChannelEntity;
-
+use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
 #[Route(defaults: ['_routeScope' => ['storefront']])]
 class CustomerController extends StorefrontController
 {
@@ -21,19 +21,21 @@ class CustomerController extends StorefrontController
     private EntityRepository $customerGroupRepository;
     private EntityRepository $salesChannelRepository;
     private EntityRepository $countryRepository;
+    private EntityRepository $countryStateRepository; 
 
 
     public function __construct(
         EntityRepository $customerRepository,
         EntityRepository $customerGroupRepository,
         EntityRepository $salesChannelRepository,
-        EntityRepository $countryRepository
-
+        EntityRepository $countryRepository,
+        EntityRepository $countryStateRepository
     ) {
         $this->customerRepository = $customerRepository;
         $this->customerGroupRepository = $customerGroupRepository;
         $this->salesChannelRepository = $salesChannelRepository;
         $this->countryRepository = $countryRepository;
+        $this->countryStateRepository = $countryStateRepository;
 
     }
 
@@ -55,12 +57,24 @@ class CustomerController extends StorefrontController
                 'name' => $channel->getTranslation('name') ?? $channel->getName(),
             ];
         }, $salesChannels->getElements());
+        $countries = $this->countryRepository->search(new Criteria(), $context)->getEntities();
 
-         $countries = $this->countryRepository->search(new Criteria(), $context)->getEntities();
-        $countryList = array_map(function ($country) {
+        $countryList = array_map(function ($country) use ($context) {
+            $criteria = new Criteria();
+            $criteria->addFilter(new EqualsFilter('countryId', $country->getId()));
+
+            $states = $this->countryStateRepository->search($criteria, $context)->getEntities();
+            $stateList = array_map(function ($state) {
+                return [
+                    'id' => $state->getId(),
+                    'name' => $state->getTranslation('name') ?? $state->getName(),
+                ];
+            }, $states->getElements());
+
             return [
-                'id' => $country->getId(), 
+                'id' => $country->getId(),
                 'name' => $country->getTranslation('name') ?? $country->getName(),
+                'states' => $stateList,
             ];
         }, $countries->getElements());
 
@@ -91,7 +105,7 @@ class CustomerController extends StorefrontController
         $groupId = $data['group_id'] ?? $context->getCurrentCustomerGroup()->getId();
         $salesChannelId = $data['sales_channel_id'] ?? $context->getSalesChannel()->getId();
         $countryId = $data['country_id'] ?? null;
-
+        $stateId = $data['state_id'] ?? null;
         $addressId = Uuid::randomHex();
         $customerId = Uuid::randomHex();
 
@@ -102,8 +116,8 @@ class CustomerController extends StorefrontController
             'street' => $data['street'] ?? '',
             'city' => $data['city'] ?? '',
             'countryId' => $countryId,
+            'countryStateId' => $stateId,
         ];
-
         $customerData = [
             'id' => $customerId,
             'customerNumber' => 'POS-' . random_int(10000, 99999),

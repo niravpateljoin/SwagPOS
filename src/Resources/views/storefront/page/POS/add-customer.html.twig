@@ -81,10 +81,19 @@
                         </select>
                     </div>
                     <div class="col-md-4 mb-3">
+                        <label for="state" class="form-label">State</label>
+                        <select class="form-select rounded-2" id="state" name="state_id">
+                            <option value="">Select State</option>
+                            <!-- States will be dynamically populated here -->
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
                         <label for="dob" class="form-label">Date of Birth</label>
                         <input type="date" class="form-control rounded-2" id="dob" name="dob">
                     </div>
-                    <div class="col-md-4 mb-3 position-relative">
+                </div>
+                <div class="row mb-3">
+                   <div class="col-md-4 mb-3 position-relative">
                         <label for="customerGroup" class="form-label">Customer Group</label>
                         <select class="form-select" name="group_id" id="customerGroup">
                             <option value="">Select Group</option>
@@ -93,8 +102,6 @@
                             {% endfor %}
                         </select>
                     </div>
-                </div>
-                <div class="row mb-3">
                     <div class="col-md-4 mb-3">
                         <label for="salesChannel" class="form-label">Sales Channel</label>
                         <select name="sales_channel_id" id="salesChannelId" class="form-select rounded-2">
@@ -108,10 +115,10 @@
                         <label for="customerNumber" class="form-label">Customer Number</label>
                         <input type="text" class="form-control rounded-2" id="customerNumber" name="customer_number" placeholder="Enter Customer Number">
                     </div>
-                    {# <div class="col-md-4">
+                    <div class="col-md-4">
                         <label for="phone" class="form-label">Phone Number</label>
                         <input type="text" class="form-control rounded-2" id="phone" name="phone" placeholder="Enter Phone Number">
-                    </div> #}
+                    </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary mt-3">Submit Account</button>
@@ -127,8 +134,8 @@
         {% endfor %}
     </div>
 </form>
-
 <script>
+    const countries = Object.values({{ countries|json_encode|raw }});
     document.getElementById('togglePassword')?.addEventListener('click', function () {
         const passwordInput = document.getElementById('accountPassword');
         const eyeIcon = document.getElementById('eyeIcon');
@@ -137,5 +144,28 @@
         eyeIcon.classList.toggle('fa-eye');
         eyeIcon.classList.toggle('fa-eye-slash');
     });
+
+    document.getElementById('country').addEventListener('change', function () {
+        var countryId = this.value;
+        var stateSelect = document.getElementById('state');
+        stateSelect.innerHTML = '<option value="">Select State</option>';
+
+        if (countryId) {
+            var country = countries.find(function (c) {
+                return c.id === countryId;
+            });
+
+            if (country && country.states) {
+                Object.values(country.states).forEach(function (state) {
+                    var option = document.createElement('option');
+                    option.value = state.id;
+                    option.text = state.name;
+                    stateSelect.appendChild(option);
+                });
+            }
+        }
+    });
 </script>
+
+
 {% endblock %}
