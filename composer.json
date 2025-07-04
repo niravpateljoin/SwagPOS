@@ -1,27 +1,22 @@
 {
-    "name": "p-o-s-basic-example/p-o-s-basic-example",
-    "description": "p-o-s-basic-example/p-o-s-basic-example",
+    "name": "vivanwebsolution/swag-pos",
+    "description": "Shopware POS plugin",
     "type": "shopware-platform-plugin",
     "version": "1.0.0",
     "license": "MIT",
     "require": {
         "shopware/core": "~6.7.0"
     },
-    "extra": {
-        "shopware-plugin-class": "POSBasicExample\\POSBasicExample",
-        "label": {
-            "de-DE": "Skeleton plugin",
-            "en-GB": "Skeleton plugin"
-        }
-    },
     "autoload": {
         "psr-4": {
             "POSBasicExample\\": "src/"
         }
     },
-    "autoload-dev": {
-        "psr-4": {
-            "POSBasicExample\\Tests\\": "tests/"
+    "extra": {
+        "shopware-plugin-class": "POSBasicExample\\POSBasicExample",
+        "label": {
+            "en-GB": "POS Plugin",
+            "de-DE": "POS Plugin"
         }
     }
 }

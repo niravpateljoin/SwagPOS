@@ -6,7 +6,8 @@ A lightweight, mobile-friendly Point of Sale (POS) system for Shopware 6.6+ and 
 
 ## 📦 Features
 
-- 📱 Mobile-friendly responsive one-page POS
+- 📱 Mobile-friendly responsive one-page POS 
+
 - 🔐 Login with Shopware admin credentials
 - 💰 Register walk-in sales as Shopware orders
 - 🧾 Print/email invoice (printer compatible)
@@ -21,12 +22,12 @@ A lightweight, mobile-friendly Point of Sale (POS) system for Shopware 6.6+ and 
 
 ## 🔧 Installation
 
-### ✅ Step 1: Copy the Plugin
+### ✅ Step 1: Install the Plugin via Composer
 
-Place the plugin folder `SwagPOS` in your Shopware project:
+In your Shopware project root, run:
 
 ```bash
-custom/plugins/SwagPOS
+composer require vivanwebsolution/swag-pos
 ```
 ### ✅ Step 2:  Install and Activate
 
@@ -36,6 +37,9 @@ bin/console plugin:refresh
 bin/console plugin:install --activate SwSimplePos
 bin/console cache:clear
 ```
+🔁 SwSimplePos is the plugin's main class. If you renamed the plugin class, update the command accordingly.
+
+
 ## 📦 Usage
 
 - Login using your Shopware admin account.
@@ -50,42 +54,55 @@ bin/console cache:clear
 
 - Option to Print or Email invoice.
 
-## 📦 Technical Details
+## ✅ Requirements
 
-- Uses Symfony controllers to handle POS logic
+To use the SwagPOS plugin, your system must meet the following requirements:
 
-- Uses Twig templates with responsive mobile layout
+- 🧩 **Shopware Version:** 6.6 or 6.7 (tested up to 6.7.x)  
 
-- Orders are placed using Shopware API endpoints (/api/order)
+- 💻 **PHP Version:** 8.1 or higher
 
-- Customer creation and address mapping done via /api/customer
+- 🛠️ **Composer:** Required for installation
 
-- Custom line items allowed (type: custom)
+- 🔐 **Shopware Admin Credentials:** Required for POS login
 
-## 📦 REST API Endpoints Used
+- 📦 **Shopware Admin API Access:** Required for order and customer handling
 
-- POST /api/oauth/token — fetch access token
 
-- GET /api/customer/{id} — get customer details
+## 📡 REST API Endpoints Used
 
-- POST /api/customer — create new customer
+| Method | Endpoint             | Description            |
+|--------|----------------------|------------------------|
+| POST   | `/api/oauth/token`   | Fetch access token     |
+| GET    | `/api/customer/{id}` | Get customer details   |
+| POST   | `/api/customer`      | Create a new customer  |
+| POST   | `/api/order`         | Create order           |
+| GET    | `/api/product`       | Search products        |
 
-- POST /api/order — create order
-
-- GET /api/product — search Shopware products
 
 ## 🔗 Related Links
 
-Shopware 6 Developer Docs
+- [Shopware 6 Developer Documentation](https://developer.shopware.com/)
+- [Shopware Admin API Reference](https://shopware.stoplight.io/docs/admin-api/)
+- [JotForm POS Concept (UI Inspiration)](https://www.jotform.com/blog/point-of-sale-form-234452/)
 
-Shopware Admin API
+## 🖼️ Functionality Screenshots
 
-JotForm POS Concept
+### 🛒 POS Interface
 
-## Functionality Screenshot
+![POS Interface](docs/Functionality/pos.png)
 
-![Functionality Screenshot](docs/Functionality/image.png)
-![Functionality Screenshot](docs/Functionality/image-29.png)
-![Functionality Screenshot](docs/Functionality/add-customer.png)
+---
+
+### ➕ Add Product and Customer (Dynamic)
+
+![Add Product and Customer](docs/Functionality/image.png)
+
+---
+
+### 👤 Add Customer Form
+
+![Add Customer](docs/Functionality/add-customer.png)
 
 
+© Vivan Web Solution — Open-source POS plugin for Shopware
